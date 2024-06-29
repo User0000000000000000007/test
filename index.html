@@ -1,122 +1,162 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <style>
-        body {
-            overflow: hidden;
-            background-color: #3c3c3c;
-            font-family: Arial, Helvetica, sans-serif;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: white;
-        }
-        .container {
-            text-align: center;
-            position: fixed;
-        }
-        select {
-            width: 70%;
-            height: 50px;
-            font-size: 30px;
-            padding: 5px;
-            border-radius: 5px;
-            border: 2px solid #ccc;
-            background-color: #fff;
-            color: #000;
-            font-family: inherit;
-        }
-        input {
-            width: 70%;
-            height: 50px;
-            font-size: 30px;
-            padding: 5px;
-            border-radius: 5px;
-            border: 2px solid #ccc;
-            background-color: #fff;
-            color: #000;
-            font-family: inherit;
-        }
-        button {
-            font-size: 30px;
-            padding: 10px 20px;
-            margin-top: 20px;
-            border: none;
-            border-radius: 5px;
-            background-color: #0066cc;
-            color: white;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #005bb5;
-        }
-        #output {
-            font-size: 30px;
-            margin-top: 20px;
-        }
-        @keyframes swipeOut {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-101%);opacity: 0; }
-        }
-        @keyframes swipeIn {
-            0% { transform: translateX(1000px);opacity: 0; }
-            100% { transform: translateX(0);opacity: 1; }
-        }
-    </style>
+  <title>Cookie Clicker Game</title>
+  <style>
+    #game {
+      display: none;
+    }
+    #score {
+      font-size: 24px;
+    }
+    #highScore {
+      font-size: 20px;
+    }
+  </style>
 </head>
 <body>
-    <div class="container" id="container" style="animation:swipeIn 400ms forwards;">
+  <h1>Cookie Clicker Game</h1>
+  <div>
+    <input type="text" id="email" placeholder="Email">
+    <input type="text" id="password" placeholder="Password">
+    <button onclick="signUp()">Sign Up</button>
+    <button onclick="logIn()">Log In</button>
+  </div>
+  <div id="user-info"></div>
+  <div id="game">
+    <div id="score">Score: 0</div>
+    <button onclick="clickCookie()">Click the Cookie!</button>
+    <div id="highScore"></div>
+    <button onclick="logOut()">Log Out</button>
+  </div>
 
-<div style="font-size: 50px; margin-bottom: 20px;">Select profession</div>
-<div style="font-size: 20px; margin-bottom: 20px;margin-right: 140px;">Please select your work you want to be more productive at :</div>
-                                <select id="professionSelect">
-            <option>Student</option>
-            <option disabled style="border:solid;">Programmer</option>
-            <option disabled style="border:solid;">Job worker</option>
-            <option disabled style="border:solid;">Our App is still under development. We are adding more professions</option>
-        </select>
-        <br>
-        <button onclick="getSelectedProfession()">Continue</button>
-        <p id="output"></p>
-    </div>
+  <!-- Firebase SDKs -->
+  <script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyB-Ex5rYknyqpbeEhkYiTavB1R2z55FzAA",
+      authDomain: "my-web-app-5d5f9.firebaseapp.com",
+      projectId: "my-web-app-5d5f9",
+      storageBucket: "my-web-app-5d5f9.appspot.com",
+      messagingSenderId: "724867728453",
+      appId: "1:724867728453:web:5e0756296fa839af860f2c",
+      measurementId: "G-F32PMKRGYQ"
+    };
 
-    <script>
-        function getSelectedProfession() {
-            var selectElement = document.getElementById("professionSelect");
-            var selectedOption = selectElement.options[selectElement.selectedIndex].text;
-            localStorage.prof = selectedOption;
-            alert(localStorage.prof);
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-            // Add swipe out animation
-            var container = document.getElementById('container');
-            container.style.animation = 'swipeOut 400ms forwards';
+    let currentUser = null;
+    let score = 0;
 
-            // After animation completes, change content and swipe in
-            setTimeout(function() {
-                container.outerHTML = `
-                    <div class="container" id="container" style="animation:swipeIn 400ms forwards;">
+    // Sign Up function
+    window.signUp = function signUp() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      createUserWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+          document.getElementById('user-info').innerText = `Signed Up as: ${user.email}`;
+        })
+        .catch((error) => {
+          console.error('Error signing up:', error.message);
+        });
+    }
 
-        <div style="font-size: 50px; margin-bottom: 20px;">
-   What is your grade of study?
-        </div>
-        <input id="studygrade" placeholder="Example: 12th class">
-        <br>
-        <button onclick="getgrade()">Continue </button>
-        <p id="output"></p></div>
-                `;
-            }, 400);
+    // Log In function
+    window.logIn = function logIn() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+          currentUser = user;
+          document.getElementById('user-info').innerText = `Logged in as: ${user.email}`;
+          document.getElementById('game').style.display = 'block';
+          loadHighScore(user.uid);
+        })
+        .catch((error) => {
+          console.error('Error logging in:', error.message);
+        });
+    }
 
-        }
+    // Log Out function
+    window.logOut = function logOut() {
+      signOut(auth).then(() => {
+        currentUser = null;
+        score = 0;
+        document.getElementById('score').innerText = `Score: ${score}`;
+        document.getElementById('user-info').innerText = '';
+        document.getElementById('highScore').innerText = '';
+        document.getElementById('game').style.display = 'none';
+      }).catch((error) => {
+        console.error('Error logging out:', error.message);
+      });
+    }
 
-        function getgrade() {
-if(document.getElementById("studygrade").value){
-localStorage.grade = document.getElementById("studygrade").value;
-            alert(localStorage.grade);
-            document.getElementById("output").innerText = "Your study grade is " + document.getElementById("studygrade").value;
-        }        
-else{document.getElementById("output").innerText = "fill it please" ;}
-        }</script>
+    // Load high score
+    function loadHighScore(userId) {
+      const userDoc = doc(db, 'users', userId);
+      getDoc(userDoc)
+        .then((docSnapshot) => {
+          if (docSnapshot.exists()) {
+            const data = docSnapshot.data();
+            score = data.highScore || 0;
+            document.getElementById('score').innerText = `Score: ${score}`;
+            document.getElementById('highScore').innerText = `High Score: ${data.highScore}`;
+          } else {
+            document.getElementById('highScore').innerText = 'No high score yet!';
+          }
+        })
+        .catch((error) => {
+          console.error('Error loading high score:', error.message);
+        });
+    }
+
+    // Save high score
+    function saveHighScore(userId, score) {
+      const userDoc = doc(db, 'users', userId);
+      setDoc(userDoc, { highScore: score }, { merge: true })
+        .then(() => {
+          console.log('High score saved!');
+        })
+        .catch((error) => {
+          console.error('Error saving high score:', error.message);
+        });
+    }
+
+    // Click the cookie
+    window.clickCookie = function clickCookie() {
+      score += 1;
+      document.getElementById('score').innerText = `Score: ${score}`;
+      if (currentUser) {
+        saveHighScore(currentUser.uid, score);
+      }
+    }
+
+    // Handle user state changes
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUser = user;
+        document.getElementById('user-info').innerText = `Logged in as: ${user.email}`;
+        document.getElementById('game').style.display = 'block';
+        loadHighScore(user.uid);
+      } else {
+        currentUser = null;
+        score = 0;
+        document.getElementById('score').innerText = `Score: ${score}`;
+        document.getElementById('user-info').innerText = '';
+        document.getElementById('highScore').innerText = '';
+        document.getElementById('game').style.display = 'none';
+      }
+    });
+  </script>
 </body>
 </html>
