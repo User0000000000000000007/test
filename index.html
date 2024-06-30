@@ -1,43 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Cookie Clicker Game</title>
-  <style>
-    #game {
-      display: none;
-    }
-    #score {
-      font-size: 24px;
-    }
-    #highScore {
-      font-size: 20px;
-    }
-  </style>
-</head>
-<body>
-  <h1>Cookie Clicker Game</h1>
-  <div>
-    <input type="text" id="email" placeholder="Email">
-    <input type="text" id="password" placeholder="Password">
-    <button onclick="signUp()">Sign Up</button>
-    <button onclick="logIn()">Log In</button>
-  </div>
-  <div id="user-info"></div>
-  <div id="game">
-    <div id="score">Score: 0</div>
-    <button onclick="clickCookie()">Click the Cookie!</button>
-    <div id="highScore"></div>
-    <button onclick="logOut()">Log Out</button>
-  </div>
-
-  <!-- Firebase SDKs -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login or Create Account</title>
+  <!-- Firebase SDK and Scripts -->
   <script type="module">
-    // Import the functions you need from the SDKs you need
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    
-    // Your web app's Firebase configuration
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.0.2/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.0.2/firebase-firestore.js";
+
+    // Your Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyB-Ex5rYknyqpbeEhkYiTavB1R2z55FzAA",
       authDomain: "my-web-app-5d5f9.firebaseapp.com",
@@ -53,110 +26,376 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    let currentUser = null;
-    let score = 0;
+    // Function to update UI based on user authentication state
+    const updateUI = (user) => {
+      const loginCreateDiv = document.getElementById('login-create');
+      const inputFieldsDiv = document.getElementById('inputFields');
+      const loginStatus = document.getElementById('loginStatus');
+      const logoutButton = document.getElementById('logoutButton');
 
-    // Sign Up function
-    window.signUp = function signUp() {
+      if (user) {
+        // User is signed in
+        loginCreateDiv.style.display = 'none';
+        inputFieldsDiv.style.display = 'block';
+        loginStatus.innerText = `Logged in as: ${user.email}`;
+        logoutButton.style.display = 'block'; // Show logout button
+        showLoading(false); // Hide loading indicator
+        // Load user inputs if available
+        loadUserInputs(user.uid);
+      } else {
+        // User is signed out
+        loginCreateDiv.style.display = 'block';
+        inputFieldsDiv.style.display = 'none';
+        loginStatus.innerText = 'Not logged in';
+        logoutButton.style.display = 'none'; // Hide logout button
+        showLoading(false); // Hide loading indicator
+      }
+    };
+
+    // Show/hide loading spinner
+    const showLoading = (isLoading) => {
+      const loadingSpinner = document.getElementById('loadingSpinner');
+      loadingSpinner.style.display = isLoading ? 'block' : 'none';
+    };
+
+    // Check online/offline status
+    const isOnline = () => {
+      return navigator.onLine;
+    };
+
+    // Listen for network status changes
+    window.addEventListener('online', () => {
+      if (isOnline()) {
+        syncOfflineData(); // Sync offline data with Firestore
+      }
+    });
+
+    window.addEventListener('offline', () => {
+      handleOffline();
+    });
+
+    // Function to handle offline mode
+    const handleOffline = () => {
+      const loginStatus = document.getElementById('loginStatus');
+      loginStatus.innerText = 'Offline mode - Some features may be limited.';
+      showLoading(false);
+      syncOfflineData(); // Sync offline data with Firestore
+    };
+
+    // Function to handle login with email and password
+    function loginWithEmailAndPassword() {
+      if (!isOnline()) {
+        handleOffline();
+        return;
+      }
+      showLoading(true); // Show loading indicator while logging in
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
-      createUserWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-          const user = userCredential.user;
-          document.getElementById('user-info').innerText = `Signed Up as: ${user.email}`;
-        })
-        .catch((error) => {
-          console.error('Error signing up:', error.message);
-        });
-    }
 
-    // Log In function
-    window.logIn = function logIn() {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
       signInWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-          const user = userCredential.user;
-          currentUser = user;
-          document.getElementById('user-info').innerText = `Logged in as: ${user.email}`;
-          document.getElementById('game').style.display = 'block';
-          loadHighScore(user.uid);
+        .then(() => {
+          // Signed in successfully, update UI
+          updateUI(auth.currentUser);
+          window.location.reload();
         })
         .catch((error) => {
-          console.error('Error logging in:', error.message);
+          document.getElementById('loginStatus').innerText = `Error: ${error.message}`;
+          showLoading(false); // Hide loading indicator on error
         });
     }
 
-    // Log Out function
-    window.logOut = function logOut() {
-      signOut(auth).then(() => {
-        currentUser = null;
-        score = 0;
-        document.getElementById('score').innerText = `Score: ${score}`;
-        document.getElementById('user-info').innerText = '';
-        document.getElementById('highScore').innerText = '';
-        document.getElementById('game').style.display = 'none';
-      }).catch((error) => {
-        console.error('Error logging out:', error.message);
-      });
+    // Function to handle creating an account with email and password
+    function createAccountWithEmailAndPassword() {
+      if (!isOnline()) {
+        handleOffline();
+        return;
+      }
+      showLoading(true); // Show loading indicator while creating account
+      const email = document.getElementById('newEmail').value;
+      const password = document.getElementById('newPassword').value;
+
+      createUserWithEmailAndPassword(auth, email, password)
+        .then(() => {
+          // Account created successfully, update UI
+          updateUI(auth.currentUser);
+          window.location.reload();
+        })
+        .catch((error) => {
+          document.getElementById('loginStatus').innerText = `Error: ${error.message}`;
+          showLoading(false); // Hide loading indicator on error
+        });
     }
 
-    // Load high score
-    function loadHighScore(userId) {
-      const userDoc = doc(db, 'users', userId);
-      getDoc(userDoc)
+    // Function to load user inputs from Firestore
+    function loadUserInputs(userId) {
+      showLoading(true); // Show loading indicator while loading user inputs
+      const userInputsRef = doc(db, 'userInputs', userId);
+
+      getDoc(userInputsRef)
         .then((docSnapshot) => {
           if (docSnapshot.exists()) {
-            const data = docSnapshot.data();
-            score = data.highScore || 0;
-            document.getElementById('score').innerText = `Score: ${score}`;
-            document.getElementById('highScore').innerText = `High Score: ${data.highScore}`;
-          } else {
-            document.getElementById('highScore').innerText = 'No high score yet!';
+            const userData = docSnapshot.data();
+            // Populate input fields with user data
+            document.getElementById('data1').value = userData.data1 || '';
+            document.getElementById('data2').value = userData.data2 || '';
+            document.getElementById('data3').value = userData.data3 || '';
+            document.getElementById('data4').value = userData.data4 || '';
+            document.getElementById('data5').value = userData.data5 || '';
+            document.getElementById('data6').value = userData.data6 || '';
+            document.getElementById('data7').value = userData.data7 || '';
+            document.getElementById('data8').value = userData.data8 || '';
+            document.getElementById('data9').value = userData.data9 || '';
+            document.getElementById('data10').value = userData.data10 || '';
+            document.getElementById('data11').value = userData.data11 || '';
+            document.getElementById('data12').value = userData.data12 || '';
+            // Repeat for all data fields
           }
+          showLoading(false); // Hide loading indicator after data is loaded
         })
         .catch((error) => {
-          console.error('Error loading high score:', error.message);
+          console.error('Error loading user inputs:', error);
+          showLoading(false); // Hide loading indicator on error
         });
     }
 
-    // Save high score
-    function saveHighScore(userId, score) {
-      const userDoc = doc(db, 'users', userId);
-      setDoc(userDoc, { highScore: score }, { merge: true })
+    // Function to save user inputs to Firestore
+    function saveUserInputs(userId) {
+      const userInputData = {
+        data1: document.getElementById('data1').value,
+        data2: document.getElementById('data2').value,
+        data3: document.getElementById('data3').value,
+        data4: document.getElementById('data4').value,
+        data5: document.getElementById('data5').value,
+        data6: document.getElementById('data6').value,
+        data7: document.getElementById('data7').value,
+        data8: document.getElementById('data8').value,
+        data9: document.getElementById('data9').value,
+        data10: document.getElementById('data10').value,
+        data11: document.getElementById('data11').value,
+        data12: document.getElementById('data12').value,
+        // Repeat for all data fields
+      };
+
+      const userInputsRef = doc(db, 'userInputs', userId);
+
+      setDoc(userInputsRef, userInputData, { merge: true })
         .then(() => {
-          console.log('High score saved!');
+          console.log('User inputs saved successfully');
+          showLoading(false); // Hide loading indicator after saving
         })
         .catch((error) => {
-          console.error('Error saving high score:', error.message);
+          console.error('Error saving user inputs:', error);
+          showLoading(false); // Hide loading indicator on error
         });
     }
 
-    // Click the cookie
-    window.clickCookie = function clickCookie() {
-      score += 1;
-      document.getElementById('score').innerText = `Score: ${score}`;
-      if (currentUser) {
-        saveHighScore(currentUser.uid, score);
+    // Function to save user inputs to localStorage
+    function saveToLocalStorage() {
+      const userInputData = {
+        data1: document.getElementById('data1').value,
+        data2: document.getElementById('data2').value,
+        data3: document.getElementById('data3').value,
+        data4: document.getElementById('data4').value,
+        data5: document.getElementById('data5').value,
+        data6: document.getElementById('data6').value,
+        data7: document.getElementById('data7').value,
+        data8: document.getElementById('data8').value,
+        data9: document.getElementById('data9').value,
+        data10: document.getElementById('data10').value,
+        data11: document.getElementById('data11').value,
+        data12: document.getElementById('data12').value,
+        // Repeat for all data fields
+      };
+
+      localStorage.setItem('offlineData', JSON.stringify(userInputData));
+    }
+
+    // Function to synchronize offline data with Firestore
+    function syncOfflineData() {
+      const offlineData = JSON.parse(localStorage.getItem('offlineData'));
+
+      if (offlineData) {
+        const userId = auth.currentUser.uid;
+        showLoading(true); // Show loading indicator while syncing
+        saveUserInputs(userId); // Save to Firestore
+        localStorage.removeItem('offlineData'); // Clear localStorage after sync
       }
     }
 
-    // Handle user state changes
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        currentUser = user;
-        document.getElementById('user-info').innerText = `Logged in as: ${user.email}`;
-        document.getElementById('game').style.display = 'block';
-        loadHighScore(user.uid);
+    // Autosave user inputs when typing (debounced to avoid too frequent saves)
+    let autosaveTimeout;
+    document.getElementById('inputFields').addEventListener('input', () => {
+      if (!isOnline()) {
+        saveToLocalStorage(); // Save to localStorage if offline
       } else {
-        currentUser = null;
-        score = 0;
-        document.getElementById('score').innerText = `Score: ${score}`;
-        document.getElementById('user-info').innerText = '';
-        document.getElementById('highScore').innerText = '';
-        document.getElementById('game').style.display = 'none';
+        const userId = auth.currentUser.uid;
+        showLoading(true); // Show loading indicator while autosaving
+        clearTimeout(autosaveTimeout);
+        autosaveTimeout = setTimeout(() => {
+          saveUserInputs(userId); // Autosave to Firestore
+        }, 1000); // Adjust debounce timeout as needed
+      }
+    });
+
+    // Function to handle logout
+    function logout() {
+      showLoading(true); // Show loading indicator while logging out
+      signOut(auth)
+        .then(() => {
+          // Sign-out successful, update UI
+          updateUI(null);
+        })
+        .catch((error) => {
+          console.error('Error signing out:', error);
+          showLoading(false); // Hide loading indicator on error
+        });
+    }
+
+    // Event listeners for login and create account forms
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      loginWithEmailAndPassword();
+    });
+
+    document.getElementById('createAccountForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      createAccountWithEmailAndPassword();
+    });
+
+    // Event listener for logout button
+    document.getElementById('logoutButton').addEventListener('click', () => {
+      logout();
+    });
+
+    // Check authentication state on page load
+    onAuthStateChanged(auth, (user) => {
+      updateUI(user);
+      if (user) {
+        console.log('User is signed in');
+      } else {
+        console.log('User is signed out');
       }
     });
   </script>
+
+  <!-- CSS Styles -->
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f8f9fa;
+    }
+
+    .container {
+      max-width: 400px;
+      width: 100%;
+      background: #fff;
+      position: absolute;
+      top: 0;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+
+    input[type="email"],
+    input[type="password"],
+    input[type="text"] {
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+
+    button[type="submit"], button#logoutButton {
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      padding: 12px 0;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+
+    button[type="submit"]:hover, button#logoutButton:hover {
+      background-color: #0056b3;
+    }
+
+    #loginStatus {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    #loadingSpinner {
+      margin: 10px auto;
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-left-color: #007bff;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      display: none; /* Hide initially */
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Sync Data online by Samir</h2>
+    <div id="login-create" style="display: none;">
+      <form id="loginForm">
+        <input type="email" id="email" placeholder="Email" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button type="submit">Login</button>
+      </form>
+      <br>
+      <form id="createAccountForm">
+        <input type="email" id="newEmail" placeholder="Email" required>
+        <input type="password" id="newPassword" placeholder="Password" required>
+        <button type="submit">Create Account</button>
+      </form>
+    </div>
+
+    <div id="inputFields" style="display: none;">
+      <h3 id="loginStatus">Loading...</h3>
+      <div id="loadingSpinner"></div>
+      <form id="userDataForm">
+        <input type="text" id="data1" placeholder="Data 1">
+        <input type="text" id="data2" placeholder="Data 2">
+        <input type="text" id="data3" placeholder="Data 3">
+        <input type="text" id="data4" placeholder="Data 4">
+        <input type="text" id="data5" placeholder="Data 5">
+        <input type="text" id="data6" placeholder="Data 6">
+        <input type="text" id="data7" placeholder="Data 7">
+        <input type="text" id="data8" placeholder="Data 8">
+        <input type="text" id="data9" placeholder="Data 9">
+        <input type="text" id="data10" placeholder="Data 10">
+        <input type="text" id="data11" placeholder="Data 11">
+        <input type="text" id="data12" placeholder="Data 12">
+        <button type="button" id="logoutButton">Logout</button>
+      </form>
+    </div>
+  </div>
 </body>
 </html>
