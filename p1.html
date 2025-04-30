@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task List - Pixel UI Theme</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --background: #0d0d0d;
+      --surface: #1a1a1a;
+      --primary: #4fc3f7;
+      --on-primary: #ffffff;
+      --text: #cccccc;
+      --border: #333333;
+      --checkbox-border: #888888;
+      --progress-bg: rgba(255, 255, 255, 0.05);
+      --progress-fill: rgba(255, 255, 255, 0.15);
+      --progress-fill-completed: rgba(79, 195, 247, 0.15);
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 60px 5px;
+      min-height: 100vh;
+    }
+
+    .task-container {
+      background-color: var(--surface);
+      padding: 20px 10px;
+      border-radius: 16px;
+      width: 100%;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .task-container h2 {
+      color: var(--text);
+      font-weight: 500;
+      font-size: 24px;
+      margin-bottom: 24px;
+    }
+
+    .task {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 5px;
+      border-bottom: 1px solid var(--border);
+      background-color: var(--progress-bg);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .task::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: var(--prev-width);
+      height: 100%;
+      width: var(--progress-width);
+      background-color: var(--progress-fill);
+      z-index: 0;
+      transition: 500ms cubic-bezier(0, -0.7, 0.25, 1.2);
+    }
+
+    .task.ticked::before {
+      background-color: var(--progress-fill-completed);
+    }
+
+    .task-content {
+      display: flex;
+      align-items: center;
+      z-index: 1;
+    }
+
+    .radio-button {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 2px solid var(--checkbox-border);
+      background-color: transparent;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-right: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    .radio-button.ticked {
+      border-color: var(--primary);
+      background-color: var(--primary);
+    }
+
+    .radio-button.ticked::after {
+      content: '';
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background-color: var(--on-primary);
+    }
+
+    .task span {
+      font-size: 16px;
+    }
+
+    .percentage {
+      z-index: 1;
+      font-size: 14px;
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+  <div class="task-container">
+    <h2>Today</h2>
+    <!-- Tasks will be dynamically inserted here -->
+  </div>
+
+  <script>
+    // Updated task data with p1-x format for task IDs
+    const tasksData = [
+      "p1-1,,পদার্থবিজ্ঞানের ধারণা,,4",
+      "p1-2,,মাত্রা ও একক,,10",
+      "p1-3,,ত্রুটি নির্ণয়,,17",
+      "p1-4,,ভার্নিয়ার স্কেল, স্ক্র-গজ, স্পেরোমিটার,,11"
+    ];
+    function getTaskCompletionState(taskId) {
+      const storage = JSON.parse(localStorage.getItem('taskCompletionState')) || {};
+      return storage[taskId] || 0;
+    }
+
+    function setTaskCompletionState(taskId, isCompleted) {
+      let storage = JSON.parse(localStorage.getItem('taskCompletionState')) || {};
+      storage[taskId] = isCompleted ? 1 : 0;
+      localStorage.setItem('taskCompletionState', JSON.stringify(storage));
+    }
+
+    // Map tasksData into a usable format with id, name, and score
+    const tasks = tasksData.map(item => {
+      const [id, name, score] = item.split(',,');
+      return { id, name, score: parseInt(score) };
+    });
+
+    // Calculate total score for percentage calculation
+    const totalScore = tasks.reduce((sum, task) => sum + task.score, 0);
+
+    const taskContainer = document.querySelector('.task-container');
+
+    for (let i = 0; i < tasks.length; i++) {
+  const task = tasks[i];
+  const taskPercentage = (task.score / totalScore) * 100;
+
+  // Calculate the sum of previous tasks' percentages
+  let previousPercentSum = 0;
+  for (let j = 0; j < i; j++) {
+    previousPercentSum += (tasks[j].score / totalScore) * 100;
+    
+  }
+
+  const taskCompleted = getTaskCompletionState(task.id) === 1;
+
+  const taskElement = document.createElement('div');
+  taskElement.classList.add('task');
+
+  // Animate progress bar if completed
+  taskElement.style.setProperty('--prev-width', `0%`);
+  setTimeout(() => {taskElement.style.setProperty('--prev-width', `${previousPercentSum}%`);},i*80);
+  if (taskCompleted) {
+    taskElement.style.setProperty('--progress-width', `0%`);
+    setTimeout(() => {
+ if(i == tasks.length-1){taskElement.style.setProperty('--progress-width', `${taskPercentage}%`);}
+else{taskElement.style.setProperty('--progress-width', `${taskPercentage-2}%`);}
+    }, i*80);
+  } else {
+    if(i == tasks.length-1){taskElement.style.setProperty('--progress-width', `${taskPercentage}%`);}
+else{taskElement.style.setProperty('--progress-width', `${taskPercentage-2}%`);}
+  }
+
+  if (taskCompleted) taskElement.classList.add('ticked');
+
+  taskElement.innerHTML = `
+    <div class="task-content">
+      <div class="radio-button ${taskCompleted ? 'ticked' : ''}"></div>
+      <span>${task.name}</span>
+    </div>
+    <div class="percentage">${taskPercentage.toFixed(1)}%</div>
+  `;
+
+  taskElement.addEventListener('click', () => {
+    localStorage.inp = 1;
+    const isCompleted = getTaskCompletionState(task.id) === 1;
+    setTaskCompletionState(task.id, !isCompleted);
+    taskElement.querySelector('.radio-button').classList.toggle('ticked');
+    taskElement.classList.toggle('ticked');
+  });
+
+  taskContainer.appendChild(taskElement);
+}
+  </script>
+</body>
+</html>

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Series Completion</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --background: #0d0d0d;
+      --surface: #1a1a1a;
+      --primary: #ffffff;
+      --on-primary: #0384c0;
+      --text: #cccccc;
+      --border: #333333;
+      --checkbox-border: #888888;
+      --progress-bg: rgba(255, 255, 255, 0.05);
+      --progress-fill: rgba(255, 255, 255, 0.15);
+      --progress-fill-completed: rgba(79, 195, 247, 0.15);
+      --progress-fill-highlight: rgb(0 176 255 / 35%); /* New color */
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 60px 20px;
+      min-height: 100vh;
+    }
+
+    .task-container {
+      background-color: var(--surface);
+      padding: 24px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .task-container h2 {
+      color: var(--text);
+      font-weight: 500;
+      font-size: 24px;
+      margin-bottom: 24px;
+    }
+
+    .task {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background-color: var(--progress-bg);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .task::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: var(--progress-width);
+      background-color: var(--progress-fill);
+      z-index: 0;
+      transition: 500ms cubic-bezier(0, -0.7, 0.25, 1.2);
+    }
+
+    .task.ticked::before {
+      background-color: var(--progress-fill-completed);
+    }
+
+    .task-content {
+      display: flex;
+      align-items: center;
+      z-index: 1;
+    }
+
+    .radio-button {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 2px solid var(--checkbox-border);
+      background-color: transparent;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-right: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    .radio-button.ticked {
+      border-color: var(--primary);
+      background-color: var(--primary);
+    }
+
+    .radio-button.ticked::after {
+      content: '';
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background-color: var(--on-primary);
+    }
+
+    .task span {
+      font-size: 16px;
+    }
+
+    .percentage {
+      z-index: 1;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .series-container {
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="task-container">
+    <h2>Task Series Completion</h2>
+    <div class="series-container">
+      <!-- Series tasks will be dynamically inserted here -->
+    </div>
+  </div>
+
+  <script>
+      // Task data with p1-x, p2-x, etc. for task IDs
+      const tasksData = [
+      "p1-1,,পদার্থবিজ্ঞানের ধারণা,,4",
+      "p1-2,,মাত্রা ও একক,,10",
+      "p1-3,,ত্রুটি নির্ণয়,,17",
+      "p1-4,,ভার্নিয়ার স্কেল, স্ক্র-গজ, স্পেরোমিটার,,11",
+
+      "p2-1,,Task 1 for p2,,1500",
+      "p2-2,,Task 2 for p2,,1000",
+      
+      "p3-1,,Task 1 for p3,,2000"
+      ,
+      
+      "p4-1,,Task 1 for p3,,2000"
+      ,
+      
+      "p5-1,,Task 1 for p3,,2000"
+    ];
+
+    // Map series ids to user-friendly names
+    const seriesNameMap = {
+      p1: 'ভৌতজগত ও পরিমাপ',
+      p2: 'ভেক্টর',
+      p3: 'গতিবিদ্যা',
+      p4: 'নিউটনিয়ান বলবিদ্যা',
+      p5: 'কাজ, ক্ষমতা, ও শক্তি',
+      p6: 'মহাকর্ষ ও অভিকর্ষ',
+      p7: 'পদার্থের গাঠনিক ধর্ম',
+      p8: 'পর্যায়বৃত্ত গতি',
+      p9: 'তরঙ্গ',
+      p10: 'আদর্শ গ্যাস ও গ্যাসের গতিত্ত্ব'
+    };
+
+    // Retrieve task completion states from localStorage
+    const taskCompletionState = JSON.parse(localStorage.getItem('taskCompletionState')) || {};
+
+    // Group tasks by series (e.g., p1, p2, p3)
+    const taskSeries = {};
+
+    tasksData.forEach(task => {
+      const [id, name, score] = task.split(',,');
+      const seriesId = id.split('-')[0]; // Get series like p1, p2, p3
+
+      if (!taskSeries[seriesId]) {
+        taskSeries[seriesId] = { totalScore: 0, tickedScore: 0, tasks: [] };
+      }
+
+      taskSeries[seriesId].totalScore += parseInt(score);
+      taskSeries[seriesId].tasks.push({ id, name, score: parseInt(score) });
+    });
+
+    // Calculate and show the percentage for each series
+    const seriesContainer = document.querySelector('.series-container');
+
+    Object.keys(taskSeries).forEach(seriesId => {
+      const series = taskSeries[seriesId];
+      const totalSeriesScore = series.totalScore;
+      let tickedSeriesScore = 0;
+
+      // Calculate the total score for completed tasks in this series
+      series.tasks.forEach(task => {
+        const isCompleted = taskCompletionState[task.id] === 1;
+        if (isCompleted) {
+          tickedSeriesScore += task.score;
+        }
+      });
+
+      // Calculate the percentage of completion
+      const seriesCompletionPercentage = (tickedSeriesScore / totalSeriesScore) * 100;
+
+      // Determine progress bar color based on percentage
+      const progressBarColor = seriesCompletionPercentage > 70 ? 'var(--progress-fill-highlight)' : '';
+
+      // Get the friendly name from the seriesNameMap
+      const seriesName = seriesNameMap[seriesId] || seriesId;
+
+      // Display the percentage for series PineriaOne, PixeliaTwo, etc.
+      const seriesElement = document.createElement('div');
+      seriesElement.classList.add('task');
+      seriesElement.setAttribute(`onclick`,`window.open("${seriesId}.html");`);
+      seriesElement.style.setProperty('--progress-width', `0%`);
+      setTimeout(() => {seriesElement.style.setProperty('--progress-width', `${seriesCompletionPercentage}%`);}, 10);
+
+      seriesElement.style.setProperty('--progress-fill', progressBarColor); // Set the color dynamically
+
+      seriesElement.innerHTML = `
+        <div class="task-content">
+          <div class="radio-button ${seriesCompletionPercentage > 40 ? 'ticked' : ''}"></div>
+          <span>${seriesName} </span>
+        </div>
+        <div class="percentage">${seriesCompletionPercentage.toFixed(1)}%</div>
+      `;
+
+      seriesContainer.appendChild(seriesElement);
+    });
+    
+setInterval(`if(localStorage.inp == 1){localStorage.dov = 1;localStorage.inp = 0;window.location.reload();}`,1);
+
+  </script>
+</body>
+</html>
